@@ -32,13 +32,13 @@
 
 > ถ้าเปิด Confirm email ไว้ ผู้ใช้ต้องเช็คอีเมลแล้วกดลิงก์ยืนยันก่อนจะล็อกอินได้
 
-## 4) เอา API Key มาใส่ในแอพ
+## 4) เอา API Key มาใส่ในไฟล์ config
 
-1. ไปที่ **Project Settings** (ไอคอนเฟือง) → **API**
+1. ไปที่ **Project Settings** (ไอคอนเฟือง) → **API Keys** (ถ้าหาไม่เจอลองกดปุ่ม **Connect** บนหน้า Dashboard ก็ได้)
 2. คัดลอกค่า 2 ตัวนี้:
    - **Project URL** (เช่น `https://abcdefgh.supabase.co`)
-   - **Project API keys → anon public** (key ยาว ๆ ขึ้นต้นด้วย `eyJ...`)
-3. เปิดไฟล์ `index.html` หาบรรทัดนี้ใกล้ ๆ ด้านบนของ `<script>`:
+   - **anon public key** (key ยาว ๆ ขึ้นต้นด้วย `eyJ...`) — ถ้าเจอ 2 แท็บ (Legacy / New) ให้ใช้ค่าจากแท็บ **Legacy API Keys** เพื่อให้ตรงกับโค้ดที่ให้ไป
+3. เปิดไฟล์ **`config.js`** (แยกจาก `index.html` แล้ว เพื่อให้แก้ง่ายและไม่ปนกับโค้ดแอพ):
 
 ```js
 const SUPABASE_URL = "https://YOUR_PROJECT_ID.supabase.co";
@@ -48,6 +48,8 @@ const SUPABASE_ANON_KEY = "YOUR_PUBLIC_ANON_KEY";
 4. แก้เป็นค่าจริงของคุณ แล้วเซฟไฟล์
 
 > **หมายเหตุเรื่องความปลอดภัย**: `anon public` key ตัวนี้ถูกออกแบบมาให้เปิดเผยในโค้ด frontend ได้ ไม่ใช่ secret key — ความปลอดภัยของข้อมูลแต่ละคนถูกป้องกันด้วย Row Level Security (RLS) ที่ตั้งไว้ในขั้นตอนที่ 2 แล้ว อย่าใช้ `service_role` key ในไฟล์นี้เด็ดขาด
+>
+> ไฟล์ `config.js` จะถูก push ขึ้น GitHub ไปด้วย (เพราะ anon key ไม่ใช่ secret) แต่ถ้าอยากให้ repo สาธารณะไม่เห็นค่านี้ ก็เพิ่ม `config.js` ลงใน `.gitignore` แล้วสร้างไฟล์นี้แยกไว้บนเครื่อง/server ที่ deploy เองได้
 
 ## 5) ทดสอบในเครื่องตัวเอง
 
@@ -75,7 +77,8 @@ git push -u origin main
 
 ```
 party-tracker/
-├── index.html          ← แอพทั้งหมด (HTML+CSS+JS ไฟล์เดียว)
+├── index.html          ← แอพทั้งหมด (HTML+CSS+JS)
+├── config.js           ← เก็บ Supabase URL + anon key แยกไว้ตรงนี้
 ├── supabase-setup.sql  ← รัน 1 ครั้งใน Supabase SQL Editor
 └── README.md           ← ไฟล์นี้
 ```
@@ -83,7 +86,7 @@ party-tracker/
 ## ฟีเจอร์
 
 - ✅ ล็อกอิน/สมัครสมาชิกด้วยอีเมล+รหัสผ่าน (Supabase Auth)
-- ✅ บันทึกรายจ่ายปาร์ตี้/เหล้า พร้อมโน้ตและวันที่
+- ✅ บันทึกรายจ่ายปาร์ตี้/เหล้า พร้อมโน้ตและเลือกวันที่ย้อนหลังได้
 - ✅ ตั้งลิมิตงบประมาณแยกตามเดือน
 - ✅ เลือกดูเดือนก่อนหน้าได้ (12 เดือนล่าสุด)
 - ✅ Chart รูปแก้วเหล้าที่เติมตามเปอร์เซ็นต์การใช้เงิน เปลี่ยนสีเมื่อใกล้/เกินลิมิต
