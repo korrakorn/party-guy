@@ -187,6 +187,54 @@
   .loading{ text-align:center; color:var(--muted); padding:60px 0; font-family:'Space Mono',monospace; font-size:13px; }
   .hidden{ display:none !important; }
 
+  /* ---------- SETTINGS MODAL ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.55);
+    display:flex; align-items:center; justify-content:center;
+    padding:20px; z-index:50;
+  }
+  .modal-card{
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:22px 22px 24px; width:100%; max-width:380px;
+    box-shadow:0 25px 60px rgba(0,0,0,0.5);
+  }
+  .modal-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
+  .modal-header h3{ font-size:18px; margin:0; }
+  .modal-close{
+    background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer;
+    padding:4px 8px; border-radius:6px;
+  }
+  .modal-close:hover{ color:var(--orange); background:rgba(255,107,53,0.1); }
+  .style-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .style-option{
+    background:var(--bg-deep); border:2px solid var(--line); border-radius:12px;
+    padding:16px 8px; display:flex; flex-direction:column; align-items:center; gap:8px;
+    cursor:pointer; color:var(--muted); font-family:'Inter',sans-serif; font-size:13px; font-weight:600;
+    transition:border-color .15s, color .15s;
+  }
+  .style-option .style-icon{ font-size:28px; }
+  .style-option:hover{ border-color:rgba(255,107,53,0.4); }
+  .style-option.active{ border-color:var(--orange); color:var(--cream); }
+
+  /* ---------- CHART VARIANTS ---------- */
+  .glass-wrap{ display:flex; justify-content:center; margin:6px 0 14px; min-height:120px; align-items:center; }
+  .chart-pct{
+    font-family:'Space Mono',monospace; font-weight:700; font-size:15px; color:#221C14;
+  }
+  /* glass */
+  .chart-glass{ width:84px; height:120px; position:relative; }
+  .chart-glass svg{ width:100%; height:100%; display:block; }
+  .chart-glass .chart-pct{ position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); text-align:center; }
+  /* bottle */
+  .chart-bottle{ width:70px; height:130px; position:relative; }
+  .chart-bottle svg{ width:100%; height:100%; display:block; }
+  .chart-bottle .chart-pct{ position:absolute; left:0; right:0; top:60%; transform:translateY(-50%); text-align:center; }
+  /* money */
+  .chart-money{ width:160px; display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .money-bar-track{ width:100%; height:22px; background:#e4dcc8; border:2px solid #221C14; border-radius:11px; overflow:hidden; }
+  .money-bar-fill{ height:100%; transition:width .6s ease; }
+  .chart-money .chart-pct{ font-size:15px; }
+
   @media (prefers-reduced-motion: no-preference){
     .liquid{ transition: y 0.6s ease, height 0.6s ease; }
     .receipt{ animation: rise .4s ease; }
@@ -231,7 +279,10 @@
         <span>Party Tab</span>
         <h1>ใบเสร็จเดือนนี้</h1>
       </div>
-      <button class="logout" id="logoutBtn">ออกจากระบบ</button>
+      <div style="display:flex; gap:8px;">
+        <button class="logout" id="settingsBtn" title="ตั้งค่า">⚙️</button>
+        <button class="logout" id="logoutBtn">ออกจากระบบ</button>
+      </div>
     </div>
 
     <div class="receipt">
@@ -246,22 +297,8 @@
 
       <div class="divider"></div>
 
-      <div class="glass-wrap">
-        <div class="glass">
-          <svg viewBox="0 0 84 120">
-            <defs>
-              <clipPath id="glassClip">
-                <path d="M14 8 H70 L62 112 H22 Z"/>
-              </clipPath>
-            </defs>
-            <path d="M14 8 H70 L62 112 H22 Z" fill="none" stroke="#221C14" stroke-width="2.5" stroke-linejoin="round"/>
-            <g clip-path="url(#glassClip)">
-              <rect id="liquid" class="liquid" x="14" y="112" width="56" height="0" fill="var(--amber)"/>
-            </g>
-            <line x1="10" y1="8" x2="74" y2="8" stroke="#221C14" stroke-width="2.5" stroke-linecap="round"/>
-          </svg>
-          <div class="glass-pct" id="glassPct">0%</div>
-        </div>
+      <div class="glass-wrap" id="chartWrap">
+        <!-- chart SVG injected by JS based on chosen style -->
       </div>
 
       <div class="stat-row"><span>ใช้ไปแล้ว</span><span class="v" id="spentVal">฿0</span></div>
@@ -296,6 +333,31 @@
     </div>
   </div>
 
+  <!-- ============ SETTINGS MODAL ============ -->
+  <div id="settingsModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>ตั้งค่า</h3>
+        <button class="modal-close" id="settingsCloseBtn">✕</button>
+      </div>
+      <div class="section-label">รูปแบบกราฟลิมิต</div>
+      <div class="style-grid">
+        <button class="style-option" data-style="glass">
+          <span class="style-icon">🥃</span>
+          <span>แก้ว</span>
+        </button>
+        <button class="style-option" data-style="bottle">
+          <span class="style-icon">🍾</span>
+          <span>ขวด</span>
+        </button>
+        <button class="style-option" data-style="money">
+          <span class="style-icon">💸</span>
+          <span>เงิน</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -308,6 +370,7 @@ let isSignUpMode = false;
 let currentMonthKey = monthKeyNow();
 let entriesCache = [];
 let limitCache = 0;
+let chartStyle = localStorage.getItem('partytab_chart_style') || 'glass';
 
 function monthKeyNow(){
   const d = new Date();
@@ -446,6 +509,7 @@ async function initMain(){
   const dateInput = document.getElementById('addDate');
   dateInput.value = todayStr();
   dateInput.max = todayStr();
+  await loadChartStylePreference();
   showMain();
   await loadMonthData();
 }
@@ -490,27 +554,87 @@ function renderAll(){
   document.getElementById('limitVal').textContent = limit > 0 ? baht(limit) : 'ยังไม่ตั้ง';
   document.getElementById('remainVal').textContent = limit > 0 ? baht(Math.max(0,remain)) : '—';
 
-  // glass liquid fill: glass body from y=8 to y=112 (height 104)
-  const liquid = document.getElementById('liquid');
-  const fillH = (pct/100) * 100; // max usable height
-  liquid.setAttribute('height', fillH);
-  liquid.setAttribute('y', 112 - fillH);
-  document.getElementById('glassPct').textContent = pct + '%';
-
-  let liquidColor = 'var(--mint)';
+  let fillColor = 'var(--mint)';
   let pillClass = 'status-ok', pillText = 'สบายๆ ดื่มได้';
   if(limit > 0){
-    if(total >= limit){ liquidColor = 'var(--orange)'; pillClass='status-over'; pillText='เกินลิมิตแล้ว!'; }
-    else if(pct >= 75){ liquidColor = 'var(--amber)'; pillClass='status-warn'; pillText='ใกล้เกินลิมิต'; }
+    if(total >= limit){ fillColor = 'var(--orange)'; pillClass='status-over'; pillText='เกินลิมิตแล้ว!'; }
+    else if(pct >= 75){ fillColor = 'var(--amber)'; pillClass='status-warn'; pillText='ใกล้เกินลิมิต'; }
   } else {
     pillClass = 'status-warn'; pillText = 'ยังไม่ตั้งลิมิต';
   }
-  liquid.setAttribute('fill', liquidColor);
   const pill = document.getElementById('statusPill');
   pill.className = 'status-pill ' + pillClass;
   pill.textContent = pillText;
 
+  renderChart(pct, fillColor);
   renderEntries();
+}
+
+/* ---------- chart renderers ---------- */
+function renderChart(pct, fillColor){
+  const wrap = document.getElementById('chartWrap');
+  if(chartStyle === 'bottle'){
+    wrap.innerHTML = chartBottleHtml(pct, fillColor);
+  } else if(chartStyle === 'money'){
+    wrap.innerHTML = chartMoneyHtml(pct, fillColor);
+  } else {
+    wrap.innerHTML = chartGlassHtml(pct, fillColor);
+  }
+}
+
+function chartGlassHtml(pct, fillColor){
+  const fillH = (pct/100) * 100;
+  const y = 112 - fillH;
+  return `
+    <div class="chart-glass">
+      <svg viewBox="0 0 84 120">
+        <defs>
+          <clipPath id="glassClip">
+            <path d="M14 8 H70 L62 112 H22 Z"/>
+          </clipPath>
+        </defs>
+        <path d="M14 8 H70 L62 112 H22 Z" fill="none" stroke="#221C14" stroke-width="2.5" stroke-linejoin="round"/>
+        <g clip-path="url(#glassClip)">
+          <rect class="liquid" x="14" y="${y}" width="56" height="${fillH}" fill="${fillColor}"/>
+        </g>
+        <line x1="10" y1="8" x2="74" y2="8" stroke="#221C14" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <div class="chart-pct">${pct}%</div>
+    </div>`;
+}
+
+function chartBottleHtml(pct, fillColor){
+  // bottle body usable area: y=34 to y=120 (height 86)
+  const fillH = (pct/100) * 86;
+  const y = 120 - fillH;
+  return `
+    <div class="chart-bottle">
+      <svg viewBox="0 0 70 130">
+        <defs>
+          <clipPath id="bottleClip">
+            <path d="M28 4 H42 V22 C42 22 52 30 52 42 V120 C52 124 48 128 44 128 H26 C22 128 18 124 18 120 V42 C18 30 28 22 28 22 Z"/>
+          </clipPath>
+        </defs>
+        <path d="M28 4 H42 V22 C42 22 52 30 52 42 V120 C52 124 48 128 44 128 H26 C22 128 18 124 18 120 V42 C18 30 28 22 28 22 Z"
+              fill="none" stroke="#221C14" stroke-width="2.5" stroke-linejoin="round"/>
+        <g clip-path="url(#bottleClip)">
+          <rect class="liquid" x="18" y="${y}" width="34" height="${fillH}" fill="${fillColor}"/>
+        </g>
+        <line x1="28" y1="4" x2="42" y2="4" stroke="#221C14" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <div class="chart-pct">${pct}%</div>
+    </div>`;
+}
+
+function chartMoneyHtml(pct, fillColor){
+  return `
+    <div class="chart-money">
+      <div style="font-size:34px;">${pct >= 100 ? '🔥' : pct >= 75 ? '😬' : '💵'}</div>
+      <div class="money-bar-track">
+        <div class="money-bar-fill" style="width:${pct}%; background:${fillColor};"></div>
+      </div>
+      <div class="chart-pct">${pct}% ของลิมิต</div>
+    </div>`;
 }
 
 function renderEntries(){
@@ -605,6 +729,54 @@ document.getElementById('setLimitBtn').addEventListener('click', async () => {
   limitCache = val;
   renderAll();
 });
+
+/* ---------- settings modal / chart style picker ---------- */
+const settingsModal = document.getElementById('settingsModal');
+
+function openSettings(){
+  document.querySelectorAll('.style-option').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-style') === chartStyle);
+  });
+  settingsModal.classList.remove('hidden');
+}
+function closeSettings(){ settingsModal.classList.add('hidden'); }
+
+document.getElementById('settingsBtn').addEventListener('click', openSettings);
+document.getElementById('settingsCloseBtn').addEventListener('click', closeSettings);
+settingsModal.addEventListener('click', (e) => { if(e.target === settingsModal) closeSettings(); });
+
+document.querySelectorAll('.style-option').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const style = btn.getAttribute('data-style');
+    if(style === chartStyle) { closeSettings(); return; }
+    chartStyle = style;
+    localStorage.setItem('partytab_chart_style', style);
+    document.querySelectorAll('.style-option').forEach(b => b.classList.toggle('active', b === btn));
+    renderAll();
+    closeSettings();
+    // เก็บ preference ไว้ใน Supabase ด้วย เพื่อให้จำได้ข้ามอุปกรณ์ (เผื่อตารางยังไม่มีไม่เป็นไร เงียบ ๆ พอ)
+    try{
+      await db.from('user_settings').upsert({
+        user_id: currentUser.id,
+        chart_style: style
+      }, { onConflict: 'user_id' });
+    } catch(e){ /* ไม่มีตารางนี้ก็ไม่เป็นไร ใช้ localStorage แทนได้ */ }
+  });
+});
+
+async function loadChartStylePreference(){
+  try{
+    const { data, error } = await db
+      .from('user_settings')
+      .select('chart_style')
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+    if(!error && data && data.chart_style){
+      chartStyle = data.chart_style;
+      localStorage.setItem('partytab_chart_style', chartStyle);
+    }
+  } catch(e){ /* ไม่มีตารางนี้ก็ใช้ค่าจาก localStorage ต่อไป */ }
+}
 
 /* ---------- boot ---------- */
 init();
