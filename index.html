@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
 <style>
   :root{
     --bg: #15131A;
@@ -161,6 +162,9 @@
   .add-row input:focus{ border-color:var(--orange); }
   .add-row input.amt{ width:110px; font-family:'Space Mono',monospace; }
   .add-row input.note{ flex:1; }
+  .add-row input[type="date"]{
+    width:100%; font-family:'Space Mono',monospace; color-scheme:dark;
+  }
   .add-form .btn{ margin-top:2px; }
 
   .section-label{ font-size:11px; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); margin-bottom:10px; }
@@ -281,6 +285,9 @@
           <input type="number" class="amt" id="addAmount" placeholder="฿ จำนวน" min="0" step="1" required>
           <input type="text" class="note" id="addNote" placeholder="รายการ เช่น ปาร์ตี้ออฟฟิศ, เบียร์" required>
         </div>
+        <div class="add-row">
+          <input type="date" id="addDate" required>
+        </div>
         <button type="submit" class="btn btn-primary">+ เพิ่มรายการ</button>
       </form>
 
@@ -292,13 +299,7 @@
 </div>
 
 <script>
-/* =========================================================
-   SUPABASE CONFIG — แก้ 2 ค่านี้เป็นของโปรเจกต์คุณเอง
-   ดูวิธีหาได้ใน Supabase Dashboard > Project Settings > API
-   ========================================================= */
-const SUPABASE_URL = "https://agfzpvwquigaoiyrkxep.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnZnpwdndxdWlnYW9peXJreGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4NDgzOTcsImV4cCI6MjA5NzQyNDM5N30.5X-LrrGAxzcc1wa1qodKcOqsHGX_--MlnQ8LLhUslSM";
-
+/* SUPABASE_URL และ SUPABASE_ANON_KEY มาจากไฟล์ config.js (โหลดไว้ใน <head>) */
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /* ---------- state ---------- */
@@ -311,6 +312,11 @@ let limitCache = 0;
 function monthKeyNow(){
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function todayStr(){
+  const d = new Date();
+  const tz = new Date(d.getTime() - d.getTimezoneOffset()*60000);
+  return tz.toISOString().slice(0,10);
 }
 function monthLabelThai(key){
   const months = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
@@ -437,6 +443,9 @@ monthSelect.addEventListener('change', () => {
 async function initMain(){
   buildMonthOptions();
   monthLabel.textContent = monthLabelThai(currentMonthKey);
+  const dateInput = document.getElementById('addDate');
+  dateInput.value = todayStr();
+  dateInput.max = todayStr();
   showMain();
   await loadMonthData();
 }
@@ -448,7 +457,7 @@ async function loadMonthData(){
 }
 
 async function loadLimit(){
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('monthly_limits')
     .select('limit_amount')
     .eq('user_id', currentUser.id)
@@ -460,7 +469,7 @@ async function loadLimit(){
 }
 
 async function loadEntries(){
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('expenses')
     .select('id, amount, note, spent_at')
     .eq('user_id', currentUser.id)
@@ -549,22 +558,34 @@ document.getElementById('addForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const amount = parseFloat(document.getElementById('addAmount').value);
   const note = document.getElementById('addNote').value.trim();
-  if(!amount || amount <= 0 || !note) return;
+  const dateVal = document.getElementById('addDate').value; // 'YYYY-MM-DD'
+  if(!amount || amount <= 0 || !note || !dateVal) return;
+
+  const entryMonthKey = dateVal.slice(0, 7); // 'YYYY-MM'
+  const spentAtIso = new Date(dateVal + 'T12:00:00').toISOString();
 
   const { data, error } = await db.from('expenses').insert({
     user_id: currentUser.id,
     amount,
     note,
-    month_key: currentMonthKey,
-    spent_at: new Date().toISOString()
+    month_key: entryMonthKey,
+    spent_at: spentAtIso
   }).select().single();
 
   if(error){ alert('บันทึกไม่สำเร็จ: ' + error.message); return; }
 
-  entriesCache.unshift(data);
-  renderAll();
+  // ถ้าบันทึกลงเดือนที่กำลังดูอยู่ ให้อัพเดตหน้าจอทันที
+  if(entryMonthKey === currentMonthKey){
+    entriesCache.unshift(data);
+    entriesCache.sort((a,b) => new Date(b.spent_at) - new Date(a.spent_at));
+    renderAll();
+  } else {
+    alert(`บันทึกแล้ว — รายการนี้ถูกเก็บไว้ในเดือน ${monthLabelThai(entryMonthKey)} เปลี่ยน dropdown เพื่อดูได้`);
+  }
+
   document.getElementById('addAmount').value = '';
   document.getElementById('addNote').value = '';
+  document.getElementById('addDate').value = todayStr();
   document.getElementById('addAmount').focus();
 });
 
