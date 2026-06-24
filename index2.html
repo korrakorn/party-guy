@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ใบเสร็จปาร์ตี้ — Party Tab Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+  :root{
+    --bg: #15131A;
+    --bg-deep: #0E0C12;
+    --card: #1E1A24;
+    --cream: #F5F0E8;
+    --muted: #B8B3C7;
+    --orange: #FF6B35;
+    --mint: #5FE0A8;
+    --amber: #F2C14E;
+    --line: rgba(245,240,232,0.08);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 20% 0%, rgba(255,107,53,0.10), transparent 45%),
+      radial-gradient(circle at 80% 100%, rgba(95,224,168,0.08), transparent 45%),
+      var(--bg);
+    color:var(--cream);
+    font-family:'Inter', sans-serif;
+    display:flex;
+    justify-content:center;
+    padding:32px 16px 80px;
+  }
+  .app{ width:100%; max-width:440px; }
+  h1,h2,h3{ font-family:'Archivo Black', sans-serif; letter-spacing:0.5px; }
+  .mono{ font-family:'Space Mono', monospace; }
+
+  /* ---------- AUTH CARD ---------- */
+  .auth-wrap{ display:flex; flex-direction:column; align-items:center; gap:24px; margin-top:10vh; }
+  .auth-card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:32px 28px;
+    width:100%;
+    box-shadow:0 20px 60px rgba(0,0,0,0.4);
+  }
+  .auth-card h1{ font-size:28px; margin:0 0 4px; color:var(--cream); }
+  .auth-card .tagline{ color:var(--muted); font-size:14px; margin:0 0 24px; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:12px; color:var(--muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.8px; }
+  .field input{
+    width:100%;
+    background:var(--bg-deep);
+    border:1px solid var(--line);
+    color:var(--cream);
+    padding:12px 14px;
+    border-radius:10px;
+    font-size:15px;
+    font-family:'Inter',sans-serif;
+    outline:none;
+    transition:border-color .15s;
+  }
+  .field input:focus{ border-color:var(--orange); }
+  .btn{
+    width:100%;
+    border:none;
+    border-radius:10px;
+    padding:13px;
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:15px;
+    cursor:pointer;
+    transition:transform .1s, opacity .15s;
+  }
+  .btn:active{ transform:scale(0.98); }
+  .btn-primary{ background:var(--orange); color:#1A1006; }
+  .btn-primary:hover{ opacity:0.92; }
+  .btn-ghost{ background:transparent; color:var(--muted); margin-top:10px; font-weight:500; font-size:13px; text-decoration:underline; }
+  .auth-toggle{ text-align:center; }
+  .auth-msg{ font-size:13px; padding:10px 12px; border-radius:8px; margin-bottom:14px; }
+  .auth-msg.error{ background:rgba(255,107,53,0.12); color:var(--orange); }
+  .auth-msg.info{ background:rgba(95,224,168,0.12); color:var(--mint); }
+
+  /* ---------- MAIN APP ---------- */
+  .topbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:22px; }
+  .topbar .brand{ display:flex; flex-direction:column; }
+  .topbar .brand span{ font-size:11px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; }
+  .topbar .brand h1{ font-size:22px; margin:2px 0 0; }
+  .logout{ background:none; border:1px solid var(--line); color:var(--muted); padding:8px 12px; border-radius:8px; font-size:12px; cursor:pointer; font-family:'Inter',sans-serif; }
+  .logout:hover{ border-color:var(--orange); color:var(--orange); }
+
+  /* receipt card */
+  .receipt{
+    background:var(--cream);
+    color:#221C14;
+    border-radius:4px 4px 0 0;
+    position:relative;
+    padding:28px 24px 22px;
+    box-shadow:0 25px 50px rgba(0,0,0,0.45);
+  }
+  .receipt::after{
+    content:"";
+    position:absolute; left:0; right:0; bottom:-9px; height:18px;
+    background:
+      linear-gradient(135deg, transparent 50%, var(--cream) 50%) 0 0/16px 16px repeat-x,
+      linear-gradient(-135deg, transparent 50%, var(--cream) 50%) 0 0/16px 16px repeat-x;
+    background-position: 0 0, 8px 0;
+  }
+  .receipt-title{ text-align:center; margin-bottom:2px; }
+  .receipt-title .label{ font-family:'Space Mono',monospace; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#7a7060; display:block; }
+  .receipt-title h2{ font-size:26px; margin:4px 0 0; }
+  .month-row{ display:flex; justify-content:space-between; align-items:center; margin:18px 0 14px; }
+  .month-row select{
+    font-family:'Space Mono',monospace; font-size:13px; border:1px dashed #cfc6b0;
+    background:transparent; padding:6px 8px; border-radius:6px; color:#221C14;
+  }
+  .divider{ border-top:1.5px dashed #cfc6b0; margin:16px 0; }
+
+  .glass-wrap{ display:flex; justify-content:center; margin:6px 0 14px; }
+  .glass{ width:84px; height:120px; position:relative; }
+  .glass svg{ width:100%; height:100%; display:block; }
+  .glass-pct{
+    position:absolute; left:0; right:0; top:50%; transform:translateY(-50%);
+    text-align:center; font-family:'Space Mono',monospace; font-weight:700; font-size:15px; color:#221C14;
+  }
+
+  .stat-row{ display:flex; justify-content:space-between; font-family:'Space Mono',monospace; font-size:13px; margin-bottom:6px; }
+  .stat-row .v{ font-weight:700; }
+  .stat-row .v.over{ color:#b8401a; }
+  .status-pill{
+    display:inline-block; padding:5px 12px; border-radius:20px; font-size:11px; font-weight:700;
+    letter-spacing:0.5px; text-transform:uppercase; margin-top:10px;
+  }
+  .status-ok{ background:rgba(95,224,168,0.18); color:#1f7a50; }
+  .status-warn{ background:rgba(242,193,78,0.25); color:#8a6300; }
+  .status-over{ background:rgba(255,107,53,0.2); color:#b8401a; }
+
+  .limit-row{ display:flex; gap:8px; align-items:center; margin-top:16px; }
+  .limit-row input{
+    flex:1; font-family:'Space Mono',monospace; padding:8px 10px; border:1px solid #cfc6b0;
+    border-radius:6px; background:#fff; font-size:13px;
+  }
+  .limit-row button{
+    font-family:'Inter',sans-serif; font-weight:700; font-size:12px; padding:9px 14px;
+    border-radius:6px; border:none; background:#221C14; color:var(--cream); cursor:pointer;
+  }
+
+  /* entries section under receipt */
+  .panel{
+    background:var(--card); border:1px solid var(--line); border-radius:0 0 16px 16px;
+    padding:22px 24px 24px; margin-top:0;
+  }
+  .add-form{ display:flex; flex-direction:column; gap:10px; margin-bottom:18px; }
+  .add-row{ display:flex; gap:8px; }
+  .add-row input{
+    background:var(--bg-deep); border:1px solid var(--line); color:var(--cream);
+    padding:11px 12px; border-radius:8px; font-family:'Inter',sans-serif; font-size:14px; outline:none;
+  }
+  .add-row input:focus{ border-color:var(--orange); }
+  .add-row input.amt{ width:110px; font-family:'Space Mono',monospace; }
+  .add-row input.note{ flex:1; }
+  .add-row input[type="date"]{
+    width:100%; font-family:'Space Mono',monospace; color-scheme:dark;
+  }
+  .add-form .btn{ margin-top:2px; }
+
+  .section-label{ font-size:11px; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); margin-bottom:10px; }
+  .entry{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:11px 0; border-bottom:1px solid var(--line);
+  }
+  .entry:last-child{ border-bottom:none; }
+  .entry .meta{ display:flex; flex-direction:column; }
+  .entry .meta .note{ font-size:14px; color:var(--cream); }
+  .entry .meta .date{ font-size:11px; color:var(--muted); font-family:'Space Mono',monospace; margin-top:2px; }
+  .entry .amt{ font-family:'Space Mono',monospace; font-weight:700; color:var(--orange); }
+  .entry .edit{
+    background:none; border:none; color:var(--muted); cursor:pointer; font-size:15px;
+    margin-left:10px; padding:2px 6px; border-radius:4px;
+  }
+  .entry .edit:hover{ color:var(--mint); background:rgba(95,224,168,0.1); }
+  .entry .del{
+    background:none; border:none; color:var(--muted); cursor:pointer; font-size:16px;
+    margin-left:10px; padding:2px 6px; border-radius:4px;
+  }
+  .entry .del:hover{ color:var(--orange); background:rgba(255,107,53,0.1); }
+  .empty{ text-align:center; color:var(--muted); font-size:13px; padding:24px 0; }
+
+  .loading{ text-align:center; color:var(--muted); padding:60px 0; font-family:'Space Mono',monospace; font-size:13px; }
+  .hidden{ display:none !important; }
+
+  /* ---------- SETTINGS MODAL ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.55);
+    display:flex; align-items:center; justify-content:center;
+    padding:20px; z-index:50;
+  }
+  .modal-card{
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:22px 22px 24px; width:100%; max-width:380px;
+    box-shadow:0 25px 60px rgba(0,0,0,0.5);
+  }
+  .modal-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
+  .modal-header h3{ font-size:18px; margin:0; }
+  .modal-close{
+    background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer;
+    padding:4px 8px; border-radius:6px;
+  }
+  .modal-close:hover{ color:var(--orange); background:rgba(255,107,53,0.1); }
+  .style-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .style-option{
+    background:var(--bg-deep); border:2px solid var(--line); border-radius:12px;
+    padding:16px 8px; display:flex; flex-direction:column; align-items:center; gap:8px;
+    cursor:pointer; color:var(--muted); font-family:'Inter',sans-serif; font-size:13px; font-weight:600;
+    transition:border-color .15s, color .15s;
+  }
+  .style-option .style-icon{ font-size:28px; }
+  .style-option:hover{ border-color:rgba(255,107,53,0.4); }
+  .style-option.active{ border-color:var(--orange); color:var(--cream); }
+
+  /* ---------- CHART VARIANTS ---------- */
+  .glass-wrap{ display:flex; justify-content:center; margin:6px 0 14px; min-height:120px; align-items:center; }
+  .chart-pct{
+    font-family:'Space Mono',monospace; font-weight:700; font-size:15px; color:#221C14;
+  }
+  /* glass */
+  .chart-glass{ width:84px; height:120px; position:relative; }
+  .chart-glass svg{ width:100%; height:100%; display:block; }
+  .chart-glass .chart-pct{ position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); text-align:center; }
+  /* bottle */
+  .chart-bottle{ width:70px; height:130px; position:relative; }
+  .chart-bottle svg{ width:100%; height:100%; display:block; }
+  .chart-bottle .chart-pct{ position:absolute; left:0; right:0; top:60%; transform:translateY(-50%); text-align:center; }
+  /* money */
+  .chart-money{ width:160px; display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .money-bar-track{ width:100%; height:22px; background:#e4dcc8; border:2px solid #221C14; border-radius:11px; overflow:hidden; }
+  .money-bar-fill{ height:100%; transition:width .6s ease; }
+  .chart-money .chart-pct{ font-size:15px; }
+
+  @media (prefers-reduced-motion: no-preference){
+    .liquid{ transition: y 0.6s ease, height 0.6s ease; }
+    .receipt{ animation: rise .4s ease; }
+  }
+  @keyframes rise{ from{ opacity:0; transform:translateY(8px);} to{ opacity:1; transform:translateY(0);} }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============ AUTH VIEW ============ -->
+  <div id="authView" class="auth-wrap hidden">
+    <div class="auth-card">
+      <h1 id="authTitle">เข้าสู่ระบบ</h1>
+      <p class="tagline">เก็บบิลปาร์ตี้ทุกเดือนไว้ที่เดียว</p>
+      <div id="authMsg"></div>
+      <form id="authForm">
+        <div class="field">
+          <label>อีเมล</label>
+          <input type="email" id="authEmail" required autocomplete="email" placeholder="you@example.com">
+        </div>
+        <div class="field">
+          <label>รหัสผ่าน</label>
+          <input type="password" id="authPassword" required autocomplete="current-password" placeholder="อย่างน้อย 6 ตัวอักษร" minlength="6">
+        </div>
+        <button type="submit" class="btn btn-primary" id="authSubmitBtn">เข้าสู่ระบบ</button>
+      </form>
+      <div class="auth-toggle">
+        <button type="button" class="btn btn-ghost" id="authToggleBtn">ยังไม่มีบัญชี? สมัครใหม่</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LOADING ============ -->
+  <div id="loadingView" class="loading">กำลังเปิดบาร์...</div>
+
+  <!-- ============ MAIN VIEW ============ -->
+  <div id="mainView" class="hidden">
+    <div class="topbar">
+      <div class="brand">
+        <span>Party Tab</span>
+        <h1>ใบเสร็จเดือนนี้</h1>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="logout" id="settingsBtn" title="ตั้งค่า">⚙️</button>
+        <button class="logout" id="logoutBtn">ออกจากระบบ</button>
+      </div>
+    </div>
+
+    <div class="receipt">
+      <div class="receipt-title">
+        <span class="label">— Bar Tab Receipt —</span>
+        <h2 id="monthLabel">มิถุนายน 2026</h2>
+      </div>
+
+      <div class="month-row">
+        <select id="monthSelect"></select>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="glass-wrap" id="chartWrap">
+        <!-- chart SVG injected by JS based on chosen style -->
+      </div>
+
+      <div class="stat-row"><span>ใช้ไปแล้ว</span><span class="v" id="spentVal">฿0</span></div>
+      <div class="stat-row"><span>ลิมิตเดือนนี้</span><span class="v" id="limitVal">฿0</span></div>
+      <div class="stat-row"><span id="remainLabel">เหลือ</span><span class="v" id="remainVal">฿0</span></div>
+
+      <div style="text-align:center;">
+        <span class="status-pill" id="statusPill">—</span>
+      </div>
+
+      <div class="limit-row">
+        <input type="number" id="limitInput" placeholder="ตั้งลิมิตเดือนนี้ (บาท)" min="0" step="50">
+        <button id="setLimitBtn">ตั้งค่า</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="section-label">บันทึกรายจ่าย</div>
+      <form id="addForm" class="add-form">
+        <div class="add-row">
+          <input type="number" class="amt" id="addAmount" placeholder="฿ จำนวน" min="0" step="1" required>
+          <input type="text" class="note" id="addNote" placeholder="รายการ เช่น ปาร์ตี้ออฟฟิศ, เบียร์" required>
+        </div>
+        <div class="add-row">
+          <input type="date" id="addDate" required>
+        </div>
+        <button type="submit" class="btn btn-primary">+ เพิ่มรายการ</button>
+      </form>
+
+      <div class="section-label">รายการเดือนนี้</div>
+      <div id="entriesList"></div>
+    </div>
+  </div>
+
+  <!-- ============ SETTINGS MODAL ============ -->
+  <div id="settingsModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>ตั้งค่า</h3>
+        <button class="modal-close" id="settingsCloseBtn">✕</button>
+      </div>
+      <div class="section-label">รูปแบบกราฟลิมิต</div>
+      <div class="style-grid">
+        <button class="style-option" data-style="glass">
+          <span class="style-icon">🥃</span>
+          <span>แก้ว</span>
+        </button>
+        <button class="style-option" data-style="bottle">
+          <span class="style-icon">🍾</span>
+          <span>ขวด</span>
+        </button>
+        <button class="style-option" data-style="money">
+          <span class="style-icon">💸</span>
+          <span>เงิน</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ EDIT ENTRY MODAL ============ -->
+  <div id="editModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>แก้ไขรายการ</h3>
+        <button class="modal-close" id="editCloseBtn">✕</button>
+      </div>
+      <form id="editForm">
+        <div class="field">
+          <label>จำนวนเงิน (฿)</label>
+          <input type="number" id="editAmount" min="0" step="1" required>
+        </div>
+        <div class="field">
+          <label>รายการ</label>
+          <input type="text" id="editNote" required>
+        </div>
+        <div class="field">
+          <label>วันที่</label>
+          <input type="date" id="editDate" required>
+        </div>
+        <button type="submit" class="btn btn-primary">บันทึกการแก้ไข</button>
+        <button type="button" class="btn btn-ghost" id="editCancelBtn" style="margin-top:10px; text-decoration:none;">ยกเลิก</button>
+      </form>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* SUPABASE_URL และ SUPABASE_ANON_KEY มาจากไฟล์ config.js (โหลดไว้ใน <head>) */
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ---------- state ---------- */
+let currentUser = null;
+let isSignUpMode = false;
+let currentMonthKey = monthKeyNow();
+let entriesCache = [];
+let limitCache = 0;
+let chartStyle = localStorage.getItem('partytab_chart_style') || 'glass';
+
+function monthKeyNow(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function todayStr(){
+  const d = new Date();
+  const tz = new Date(d.getTime() - d.getTimezoneOffset()*60000);
+  return tz.toISOString().slice(0,10);
+}
+function monthLabelThai(key){
+  const months = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+  const [y,m] = key.split('-');
+  return `${months[parseInt(m,10)-1]} ${y}`;
+}
+function baht(n){
+  return '฿' + Number(n||0).toLocaleString('th-TH', {maximumFractionDigits:0});
+}
+
+/* ---------- DOM refs ---------- */
+const authView = document.getElementById('authView');
+const loadingView = document.getElementById('loadingView');
+const mainView = document.getElementById('mainView');
+const authForm = document.getElementById('authForm');
+const authTitle = document.getElementById('authTitle');
+const authSubmitBtn = document.getElementById('authSubmitBtn');
+const authToggleBtn = document.getElementById('authToggleBtn');
+const authMsg = document.getElementById('authMsg');
+const monthSelect = document.getElementById('monthSelect');
+const monthLabel = document.getElementById('monthLabel');
+
+/* ---------- view switching ---------- */
+function showAuth(){ authView.classList.remove('hidden'); loadingView.classList.add('hidden'); mainView.classList.add('hidden'); }
+function showLoading(){ authView.classList.add('hidden'); loadingView.classList.remove('hidden'); mainView.classList.add('hidden'); }
+function showMain(){ authView.classList.add('hidden'); loadingView.classList.add('hidden'); mainView.classList.remove('hidden'); }
+
+/* ---------- auth toggle ---------- */
+authToggleBtn.addEventListener('click', () => {
+  isSignUpMode = !isSignUpMode;
+  authTitle.textContent = isSignUpMode ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ';
+  authSubmitBtn.textContent = isSignUpMode ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ';
+  authToggleBtn.textContent = isSignUpMode ? 'มีบัญชีแล้ว? เข้าสู่ระบบ' : 'ยังไม่มีบัญชี? สมัครใหม่';
+  authMsg.innerHTML = '';
+});
+
+function setAuthMsg(text, type){
+  authMsg.innerHTML = text ? `<div class="auth-msg ${type}">${text}</div>` : '';
+}
+
+authForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  authSubmitBtn.disabled = true;
+  setAuthMsg('', '');
+
+  try{
+    if(isSignUpMode){
+      const { data, error } = await db.auth.signUp({ email, password });
+      if(error) throw error;
+      if(data.user && !data.session){
+        setAuthMsg('สมัครสำเร็จ เช็คอีเมลเพื่อยืนยันตัวตน แล้วล็อกอินได้เลย', 'info');
+        isSignUpMode = false;
+        authTitle.textContent = 'เข้าสู่ระบบ';
+        authSubmitBtn.textContent = 'เข้าสู่ระบบ';
+        authToggleBtn.textContent = 'ยังไม่มีบัญชี? สมัครใหม่';
+      }
+    } else {
+      const { error } = await db.auth.signInWithPassword({ email, password });
+      if(error) throw error;
+    }
+  } catch(err){
+    setAuthMsg(translateAuthError(err.message), 'error');
+  } finally {
+    authSubmitBtn.disabled = false;
+  }
+});
+
+function translateAuthError(msg){
+  if(/Invalid login credentials/i.test(msg)) return 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+  if(/already registered/i.test(msg)) return 'อีเมลนี้สมัครไว้แล้ว ลองเข้าสู่ระบบดู';
+  if(/Password should be/i.test(msg)) return 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
+  return msg;
+}
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  await db.auth.signOut();
+});
+
+/* ---------- session handling ---------- */
+db.auth.onAuthStateChange((event, session) => {
+  if(session && session.user){
+    currentUser = session.user;
+    initMain();
+  } else {
+    currentUser = null;
+    showAuth();
+  }
+});
+
+async function init(){
+  showLoading();
+  const { data } = await db.auth.getSession();
+  if(data.session && data.session.user){
+    currentUser = data.session.user;
+    initMain();
+  } else {
+    showAuth();
+  }
+}
+
+/* ---------- month selector ---------- */
+function buildMonthOptions(){
+  monthSelect.innerHTML = '';
+  const now = new Date();
+  for(let i=0; i<12; i++){
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = monthLabelThai(key);
+    monthSelect.appendChild(opt);
+  }
+  monthSelect.value = currentMonthKey;
+}
+monthSelect.addEventListener('change', () => {
+  currentMonthKey = monthSelect.value;
+  monthLabel.textContent = monthLabelThai(currentMonthKey);
+  loadMonthData();
+});
+
+/* ---------- main init ---------- */
+async function initMain(){
+  buildMonthOptions();
+  monthLabel.textContent = monthLabelThai(currentMonthKey);
+  const dateInput = document.getElementById('addDate');
+  dateInput.value = todayStr();
+  dateInput.max = todayStr();
+  await loadChartStylePreference();
+  showMain();
+  await loadMonthData();
+}
+
+/* ---------- data loading ---------- */
+async function loadMonthData(){
+  await Promise.all([loadLimit(), loadEntries()]);
+  renderAll();
+}
+
+async function loadLimit(){
+  const { data, error } = await db
+    .from('monthly_limits')
+    .select('limit_amount')
+    .eq('user_id', currentUser.id)
+    .eq('month_key', currentMonthKey)
+    .maybeSingle();
+  if(error){ console.error(error); limitCache = 0; return; }
+  limitCache = data ? Number(data.limit_amount) : 0;
+  document.getElementById('limitInput').value = limitCache || '';
+}
+
+async function loadEntries(){
+  const { data, error } = await db
+    .from('expenses')
+    .select('id, amount, note, spent_at')
+    .eq('user_id', currentUser.id)
+    .eq('month_key', currentMonthKey)
+    .order('spent_at', { ascending: false });
+  if(error){ console.error(error); entriesCache = []; return; }
+  entriesCache = data || [];
+}
+
+/* ---------- render ---------- */
+function renderAll(){
+  const total = entriesCache.reduce((s,e) => s + Number(e.amount), 0);
+  const limit = limitCache;
+  const remain = limit - total;
+  const pct = limit > 0 ? Math.round((total/limit)*100) : 0;        // ไม่ clamp ที่ 100 เพื่อรู้ว่าเกินไปกี่ %
+  const fillPct = Math.min(100, Math.max(0, pct));                   // clamp เฉพาะตอนเอาไปเติม chart
+
+  document.getElementById('spentVal').textContent = baht(total);
+  document.getElementById('limitVal').textContent = limit > 0 ? baht(limit) : 'ยังไม่ตั้ง';
+
+  const remainLabel = document.getElementById('remainLabel');
+  const remainVal = document.getElementById('remainVal');
+  if(limit > 0 && remain < 0){
+    remainLabel.textContent = 'เกินไป';
+    remainVal.textContent = '-' + baht(Math.abs(remain));
+    remainVal.classList.add('over');
+  } else {
+    remainLabel.textContent = 'เหลือ';
+    remainVal.textContent = limit > 0 ? baht(remain) : '—';
+    remainVal.classList.remove('over');
+  }
+
+  let fillColor = 'var(--mint)';
+  let pillClass = 'status-ok', pillText = 'สบายๆ ดื่มได้';
+  if(limit > 0){
+    if(total > limit){ fillColor = 'var(--orange)'; pillClass='status-over'; pillText = `เกินลิมิต ${baht(total-limit)}!`; }
+    else if(total === limit){ fillColor = 'var(--orange)'; pillClass='status-over'; pillText='เกินลิมิตแล้ว!'; }
+    else if(pct >= 75){ fillColor = 'var(--amber)'; pillClass='status-warn'; pillText='ใกล้เกินลิมิต'; }
+  } else {
+    pillClass = 'status-warn'; pillText = 'ยังไม่ตั้งลิมิต';
+  }
+  const pill = document.getElementById('statusPill');
+  pill.className = 'status-pill ' + pillClass;
+  pill.textContent = pillText;
+
+  renderChart(fillPct, fillColor);
+  renderEntries();
+}
+
+/* ---------- chart renderers ---------- */
+function renderChart(pct, fillColor){
+  const wrap = document.getElementById('chartWrap');
+  if(chartStyle === 'bottle'){
+    wrap.innerHTML = chartBottleHtml(pct, fillColor);
+  } else if(chartStyle === 'money'){
+    wrap.innerHTML = chartMoneyHtml(pct, fillColor);
+  } else {
+    wrap.innerHTML = chartGlassHtml(pct, fillColor);
+  }
+}
+
+function chartGlassHtml(pct, fillColor){
+  const fillH = (pct/100) * 100;
+  const y = 112 - fillH;
+  return `
+    <div class="chart-glass">
+      <svg viewBox="0 0 84 120">
+        <defs>
+          <clipPath id="glassClip">
+            <path d="M14 8 H70 L62 112 H22 Z"/>
+          </clipPath>
+        </defs>
+        <path d="M14 8 H70 L62 112 H22 Z" fill="none" stroke="#221C14" stroke-width="2.5" stroke-linejoin="round"/>
+        <g clip-path="url(#glassClip)">
+          <rect class="liquid" x="14" y="${y}" width="56" height="${fillH}" fill="${fillColor}"/>
+        </g>
+        <line x1="10" y1="8" x2="74" y2="8" stroke="#221C14" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <div class="chart-pct">${pct}%</div>
+    </div>`;
+}
+
+function chartBottleHtml(pct, fillColor){
+  // bottle body usable area: y=34 to y=120 (height 86)
+  const fillH = (pct/100) * 86;
+  const y = 120 - fillH;
+  return `
+    <div class="chart-bottle">
+      <svg viewBox="0 0 70 130">
+        <defs>
+          <clipPath id="bottleClip">
+            <path d="M28 4 H42 V22 C42 22 52 30 52 42 V120 C52 124 48 128 44 128 H26 C22 128 18 124 18 120 V42 C18 30 28 22 28 22 Z"/>
+          </clipPath>
+        </defs>
+        <path d="M28 4 H42 V22 C42 22 52 30 52 42 V120 C52 124 48 128 44 128 H26 C22 128 18 124 18 120 V42 C18 30 28 22 28 22 Z"
+              fill="none" stroke="#221C14" stroke-width="2.5" stroke-linejoin="round"/>
+        <g clip-path="url(#bottleClip)">
+          <rect class="liquid" x="18" y="${y}" width="34" height="${fillH}" fill="${fillColor}"/>
+        </g>
+        <line x1="28" y1="4" x2="42" y2="4" stroke="#221C14" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <div class="chart-pct">${pct}%</div>
+    </div>`;
+}
+
+function chartMoneyHtml(pct, fillColor){
+  return `
+    <div class="chart-money">
+      <div style="font-size:34px;">${pct >= 100 ? '🔥' : pct >= 75 ? '😬' : '💵'}</div>
+      <div class="money-bar-track">
+        <div class="money-bar-fill" style="width:${pct}%; background:${fillColor};"></div>
+      </div>
+      <div class="chart-pct">${pct}% ของลิมิต</div>
+    </div>`;
+}
+
+function renderEntries(){
+  const list = document.getElementById('entriesList');
+  if(entriesCache.length === 0){
+    list.innerHTML = '<div class="empty">ยังไม่มีรายการเดือนนี้ — เริ่มบันทึกบิลแรกกันเลย</div>';
+    return;
+  }
+  list.innerHTML = entriesCache.map(e => {
+    const d = new Date(e.spent_at);
+    const dateStr = d.toLocaleDateString('th-TH', { day:'numeric', month:'short' });
+    return `
+      <div class="entry" data-id="${e.id}">
+        <div class="meta">
+          <span class="note">${escapeHtml(e.note)}</span>
+          <span class="date">${dateStr}</span>
+        </div>
+        <div style="display:flex; align-items:center;">
+          <span class="amt">${baht(e.amount)}</span>
+          <button class="edit" data-id="${e.id}" title="แก้ไขรายการ">✎</button>
+          <button class="del" data-id="${e.id}" title="ลบรายการ">✕</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  list.querySelectorAll('.edit').forEach(btn => {
+    btn.addEventListener('click', () => openEditModal(btn.getAttribute('data-id')));
+  });
+
+  list.querySelectorAll('.del').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-id');
+      const { error } = await db.from('expenses').delete().eq('id', id).eq('user_id', currentUser.id);
+      if(!error){
+        entriesCache = entriesCache.filter(e => String(e.id) !== String(id));
+        renderAll();
+      }
+    });
+  });
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* ---------- add entry ---------- */
+document.getElementById('addForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const amount = parseFloat(document.getElementById('addAmount').value);
+  const note = document.getElementById('addNote').value.trim();
+  const dateVal = document.getElementById('addDate').value; // 'YYYY-MM-DD'
+  if(!amount || amount <= 0 || !note || !dateVal) return;
+
+  const entryMonthKey = dateVal.slice(0, 7); // 'YYYY-MM'
+  const spentAtIso = new Date(dateVal + 'T12:00:00').toISOString();
+
+  const { data, error } = await db.from('expenses').insert({
+    user_id: currentUser.id,
+    amount,
+    note,
+    month_key: entryMonthKey,
+    spent_at: spentAtIso
+  }).select().single();
+
+  if(error){ alert('บันทึกไม่สำเร็จ: ' + error.message); return; }
+
+  // ถ้าบันทึกลงเดือนที่กำลังดูอยู่ ให้อัพเดตหน้าจอทันที
+  if(entryMonthKey === currentMonthKey){
+    entriesCache.unshift(data);
+    entriesCache.sort((a,b) => new Date(b.spent_at) - new Date(a.spent_at));
+    renderAll();
+  } else {
+    alert(`บันทึกแล้ว — รายการนี้ถูกเก็บไว้ในเดือน ${monthLabelThai(entryMonthKey)} เปลี่ยน dropdown เพื่อดูได้`);
+  }
+
+  document.getElementById('addAmount').value = '';
+  document.getElementById('addNote').value = '';
+  document.getElementById('addDate').value = todayStr();
+  document.getElementById('addAmount').focus();
+});
+
+/* ---------- set limit ---------- */
+document.getElementById('setLimitBtn').addEventListener('click', async () => {
+  const val = parseFloat(document.getElementById('limitInput').value);
+  if(isNaN(val) || val < 0) return;
+
+  const { error } = await db.from('monthly_limits').upsert({
+    user_id: currentUser.id,
+    month_key: currentMonthKey,
+    limit_amount: val
+  }, { onConflict: 'user_id,month_key' });
+
+  if(error){ alert('ตั้งลิมิตไม่สำเร็จ: ' + error.message); return; }
+
+  limitCache = val;
+  renderAll();
+});
+
+/* ---------- edit entry modal ---------- */
+const editModal = document.getElementById('editModal');
+let editingId = null;
+
+function openEditModal(id){
+  const entry = entriesCache.find(e => String(e.id) === String(id));
+  if(!entry) return;
+  editingId = id;
+  document.getElementById('editAmount').value = entry.amount;
+  document.getElementById('editNote').value = entry.note;
+  const d = new Date(entry.spent_at);
+  const tz = new Date(d.getTime() - d.getTimezoneOffset()*60000);
+  document.getElementById('editDate').value = tz.toISOString().slice(0,10);
+  document.getElementById('editDate').max = todayStr();
+  editModal.classList.remove('hidden');
+}
+function closeEditModal(){ editModal.classList.add('hidden'); editingId = null; }
+
+document.getElementById('editCloseBtn').addEventListener('click', closeEditModal);
+document.getElementById('editCancelBtn').addEventListener('click', closeEditModal);
+editModal.addEventListener('click', (e) => { if(e.target === editModal) closeEditModal(); });
+
+document.getElementById('editForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if(!editingId) return;
+
+  const amount = parseFloat(document.getElementById('editAmount').value);
+  const note = document.getElementById('editNote').value.trim();
+  const dateVal = document.getElementById('editDate').value;
+  if(!amount || amount <= 0 || !note || !dateVal) return;
+
+  const newMonthKey = dateVal.slice(0, 7);
+  const spentAtIso = new Date(dateVal + 'T12:00:00').toISOString();
+
+  const { data, error } = await db.from('expenses')
+    .update({ amount, note, month_key: newMonthKey, spent_at: spentAtIso })
+    .eq('id', editingId)
+    .eq('user_id', currentUser.id)
+    .select()
+    .single();
+
+  if(error){ alert('แก้ไขไม่สำเร็จ: ' + error.message); return; }
+
+  closeEditModal();
+
+  if(newMonthKey === currentMonthKey){
+    entriesCache = entriesCache.map(e => String(e.id) === String(data.id) ? data : e);
+    entriesCache.sort((a,b) => new Date(b.spent_at) - new Date(a.spent_at));
+    renderAll();
+  } else {
+    // ย้ายไปเดือนอื่นแล้ว เอาออกจากรายการเดือนปัจจุบัน
+    entriesCache = entriesCache.filter(e => String(e.id) !== String(data.id));
+    renderAll();
+    alert(`แก้ไขแล้ว — รายการนี้ถูกย้ายไปเดือน ${monthLabelThai(newMonthKey)}`);
+  }
+});
+
+/* ---------- settings modal / chart style picker ---------- */
+const settingsModal = document.getElementById('settingsModal');
+
+function openSettings(){
+  document.querySelectorAll('.style-option').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-style') === chartStyle);
+  });
+  settingsModal.classList.remove('hidden');
+}
+function closeSettings(){ settingsModal.classList.add('hidden'); }
+
+document.getElementById('settingsBtn').addEventListener('click', openSettings);
+document.getElementById('settingsCloseBtn').addEventListener('click', closeSettings);
+settingsModal.addEventListener('click', (e) => { if(e.target === settingsModal) closeSettings(); });
+
+document.querySelectorAll('.style-option').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const style = btn.getAttribute('data-style');
+    if(style === chartStyle) { closeSettings(); return; }
+    chartStyle = style;
+    localStorage.setItem('partytab_chart_style', style);
+    document.querySelectorAll('.style-option').forEach(b => b.classList.toggle('active', b === btn));
+    renderAll();
+    closeSettings();
+    // เก็บ preference ไว้ใน Supabase ด้วย เพื่อให้จำได้ข้ามอุปกรณ์ (เผื่อตารางยังไม่มีไม่เป็นไร เงียบ ๆ พอ)
+    try{
+      await db.from('user_settings').upsert({
+        user_id: currentUser.id,
+        chart_style: style
+      }, { onConflict: 'user_id' });
+    } catch(e){ /* ไม่มีตารางนี้ก็ไม่เป็นไร ใช้ localStorage แทนได้ */ }
+  });
+});
+
+async function loadChartStylePreference(){
+  try{
+    const { data, error } = await db
+      .from('user_settings')
+      .select('chart_style')
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+    if(!error && data && data.chart_style){
+      chartStyle = data.chart_style;
+      localStorage.setItem('partytab_chart_style', chartStyle);
+    }
+  } catch(e){ /* ไม่มีตารางนี้ก็ใช้ค่าจาก localStorage ต่อไป */ }
+}
+
+/* ---------- boot ---------- */
+init();
+</script>
+</body>
+</html>
